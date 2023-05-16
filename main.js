@@ -241,6 +241,10 @@ function createProgram(gl, vShader, fShader) {
     return prog;
 }
 
+const rerender = () => {
+  draw();
+  window.requestAnimationFrame(rerender);
+}
 
 /**
  * initialization function that will be called when the page has loaded
@@ -250,6 +254,19 @@ function init() {
     try {
         canvas = document.getElementById("webglcanvas");
         gl = canvas.getContext("webgl");
+
+        video = document.createElement('video');
+        video.setAttribute('autoplay', 'true');
+        cameraText = getCameraText(gl);
+
+        document.getElementById('camera').addEventListener('change', async (e) => {
+          if (document.getElementById('camera').checked) {
+            getCamera().then((stream)=> video.srcObject = stream)
+          } else {
+            video.srcObject = null;
+          }
+        });
+
         if ( ! gl ) {
             throw "Browser does not support WebGL";
         }
