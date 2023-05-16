@@ -4,6 +4,17 @@ let gl;                         // The webgl context.
 let surface;                    // A surface model
 let shProgram;                  // A shader program
 let spaceball;                  // A SimpleRotator object that lets the user rotate the view by mouse.
+let texture;
+let cameraText;
+let video;
+let BG;
+
+// FIGURE CONSTANTS
+const a = 0.7;
+const c = 1;
+const U_MAX = 360;
+const T_MAX = 90;
+const teta = deg2rad(30);
 
 function deg2rad(angle) {
     return angle * Math.PI / 180;
@@ -14,23 +25,31 @@ function deg2rad(angle) {
 function Model(name) {
     this.name = name;
     this.iVertexBuffer = gl.createBuffer();
+    this.iTextureBuffer = gl.createBuffer();
     this.count = 0;
 
-    this.BufferData = function(vertices) {
-
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STREAM_DRAW);
-
-        this.count = vertices.length/3;
+    this.BufferData = function(vertices, textureList) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STREAM_DRAW);
+  
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.iTextureBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(textureList), gl.STREAM_DRAW);
+  
+      gl.enableVertexAttribArray(shProgram.iTextCoords);
+      gl.vertexAttribPointer(shProgram.iTextCoords, 2, gl.FLOAT, false, 0, 0);
+  
+      this.count = vertices.length / 3;
     }
 
     this.Draw = function() {
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
+      gl.vertexAttribPointer(shProgram.iAttribVertex, 3, gl.FLOAT, false, 0, 0);
+      gl.enableVertexAttribArray(shProgram.iAttribVertex);
 
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
-        gl.vertexAttribPointer(shProgram.iAttribVertex, 3, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(shProgram.iAttribVertex);
-   
-        gl.drawArrays(gl.LINE_STRIP, 0, this.count);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.iTextureBuffer);
+      gl.vertexAttribPointer(shProgram.iTextCoords, 2, gl.FLOAT, false, 0, 0);
+      gl.enableVertexAttribArray(shProgram.iTextCoords);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, this.count);
     }
 }
 
@@ -41,15 +60,12 @@ function ShaderProgram(name, program) {
     this.name = name;
     this.prog = program;
 
-    // Location of the attribute variable in the shader program.
     this.iAttribVertex = -1;
-    // Location of the uniform specifying a color for the primitive.
-    this.iColor = -1;
-    // Location of the uniform matrix representing the combined transformation.
-    this.iModelViewProjectionMatrix = -1;
+    this.iTextCoords = -1;
+    this.iTextUnit = -1;
 
     this.Use = function() {
-        gl.useProgram(this.prog);
+      gl.useProgram(this.prog);
     }
 }
 
