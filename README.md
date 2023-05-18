@@ -2,6 +2,7 @@
 
 Mordas Ivan TR-22MP
 Variant 16
+![image](/result2.gif)
 
 ![image](/1.PNG)
 
