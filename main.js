@@ -8,6 +8,9 @@ let texture;
 let cameraText;
 let video;
 let BG;
+let orientHandler = null;
+
+let orientationEvent = { alpha: 0, beta: 0, gamma: 0 };
 
 // FIGURE CONSTANTS
 const a = 0.7;
@@ -101,10 +104,25 @@ function draw() {
 
     let rightP = m4.orthographic(left, right, bottom, top, near, far);
 
-    /* Get the view matrix from the SimpleRotator object.*/
-    let modelView = spaceball.getViewMatrix();
+  /* Get the view matrix from the SimpleRotator object.*/
+  let modelView = spaceball.getViewMatrix();
 
-    let rotateToPointZero = m4.axisRotation([0.707,0.707,0], 0);
+  if (orientationEvent.alpha && orientationEvent.beta && orientationEvent.gamma) {
+    let alpha = orientationEvent.alpha * (Math.PI / 180);
+    let beta = orientationEvent.beta * (Math.PI / 180);
+    let gamma = orientationEvent.gamma * (Math.PI / 180);
+
+    let rotationMatZ = m4.axisRotation([0, 0, 1], alpha);
+    let rotationMatX = m4.axisRotation([1, 0, 0], -beta);
+    let rotationMayY = m4.axisRotation([0, 1, 0], gamma);
+
+    let rotationMatrix = m4.multiply(m4.multiply(rotationMatX, rotationMayY), rotationMatZ);
+    let translationMatrix = m4.translation(0, 0, -2);
+
+    modelView = m4.multiply(rotationMatrix, translationMatrix);
+  }
+
+  let rotateToPointZero = m4.axisRotation([0.707, 0.707, 0], 0);
 
     let leftTrans = m4.translation(-0.01, 0, -20);
     let rightTrans = m4.translation(0.01, 0, -20);
@@ -292,12 +310,19 @@ function init() {
     document.getElementById('fov').addEventListener('input', draw);
     document.getElementById('near').addEventListener('input', draw);
 
-    rerender();
+  document.getElementById('orientation').addEventListener('change', async () => {
+    if (document.getElementById('orientation').checked) {
+      startDeviceOrientation();
+    }
+  });
+
+  rerender();
 }
 
 const LoadTexture = () => {
   const image = new Image();
-  image.src = 'https://www.the3rdsequence.com/texturedb/download/116/texture/jpg/1024/irregular+wood+planks-1024x1024.jpg';
+  image.src =
+    'https://www.the3rdsequence.com/texturedb/download/116/texture/jpg/1024/irregular+wood+planks-1024x1024.jpg';
   image.crossOrigin = 'anonymous';
 
 
@@ -326,4 +351,28 @@ const getCameraText = (gl) => {
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 
   return text;
+};
+
+const startDeviceOrientation = async () => {
+  if (
+    typeof DeviceOrientationEvent?.requestPermission !== 'function' ||
+    typeof DeviceOrientationEvent === 'undefined'
+  )
+    throw new Error('DeviceOrientationEvent === undefined');
+
+  try {
+    const permission = await DeviceOrientationEvent.requestPermission();
+    if (permission === 'granted') {
+      orientHandler = (event) => {
+        const { alpha, beta, gamma } = event;
+        orientationEvent.alpha = alpha;
+        orientationEvent.beta = beta;
+        orientationEvent.gamma = gamma;
+      };
+      window.addEventListener('deviceorientation', orientHandler, true);
+    }
+  } catch (e) {
+    alert(e);
+    console.error('e', e);
+  }
 };
