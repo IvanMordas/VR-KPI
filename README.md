@@ -2,10 +2,5 @@
 
 Mordas Ivan TR-22MP
 Variant 16
-![image](/result2.gif)
 
-![image](/1.PNG)
-
-![image](/3.PNG)
-
-![image](/5.PNG)
+https://github.com/IvanMordas/VR-KPI/assets/83342105/8190d3b8-9e6a-47c7-8d06-8b16126f2468
