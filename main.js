@@ -61,7 +61,13 @@ function Model(name) {
       gl.bindBuffer(gl.ARRAY_BUFFER, this.iTextureBuffer);
       gl.vertexAttribPointer(shProgram.iTextCoords, 2, gl.FLOAT, false, 0, 0);
       gl.enableVertexAttribArray(shProgram.iTextCoords);
+    
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, this.count);
+    }
+
+    this.DrawSphere = function () {
+      this.Draw();
+      gl.drawArrays(gl.LINE_STRIP, 0, this.count);
     }
 }
 
@@ -87,7 +93,7 @@ function ShaderProgram(name, program) {
  * way to draw with WebGL.  Here, the geometry is so simple that it doesn't matter.)
  */
 function draw() { 
-    gl.clearColor(0,0,0,1);
+    gl.clearColor(1, 1, 1, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     const eyeSeparation = parseFloat(document.getElementById('eyeSeparation').value);
@@ -113,8 +119,8 @@ function draw() {
 
     let rightP = m4.orthographic(left, right, bottom, top, near, far);
 
-  /* Get the view matrix from the SimpleRotator object.*/
-  let modelView = spaceball.getViewMatrix();
+    /* Get the view matrix from the SimpleRotator object.*/
+    let modelView = spaceball.getViewMatrix();
 
   if (orientationEvent.alpha && orientationEvent.beta && orientationEvent.gamma) {
     let alpha = orientationEvent.alpha * (Math.PI / 180);
@@ -131,12 +137,10 @@ function draw() {
     modelView = m4.multiply(rotationMatrix, translationMatrix);
   }
 
-  let rotateToPointZero = m4.axisRotation([0.707, 0.707, 0], 0);
+    let rotateToPointZero = m4.axisRotation([0.707, 0.707, 0], 0);
 
     let leftTrans = m4.translation(-0.01, 0, -20);
     let rightTrans = m4.translation(0.01, 0, -20);
-
-    let matrixMult = m4.multiply(rotateToPointZero, modelView);
 
     if (document.getElementById('camera').checked) {
       const projection = m4.orthographic(0, 1, 0, 1, -1, 1);
@@ -150,20 +154,34 @@ function draw() {
       BG?.Draw();
     }
 
-    gl.bindTexture(gl.TEXTURE_2D, texture);
+    pos += 0.015;
+    updateSpherePosition(pos, 0, -1, 0.75)
+    const audioPos = [spherePosition[0], spherePosition[1], spherePosition[2]];
+    panner?.setPosition(...audioPos);
+    gl.bindTexture(gl.TEXTURE_2D, null);
 
+    const projection = m4.perspective(deg2rad(90), 1, 0.99, 1);
+    const translationSphere = m4.translation(...spherePosition);
+    const modelViewMatrix = m4.multiply(translationSphere, modelView);
+
+    gl.uniformMatrix4fv(shProgram.iModelViewMat, false, projection);
+    gl.uniformMatrix4fv(shProgram.iProjectionMat, false, modelViewMatrix);
+    
+    sphere.DrawSphere();
+
+    gl.bindTexture(gl.TEXTURE_2D, texture);
     gl.clear(gl.DEPTH_BUFFER_BIT);
 
-    gl.uniformMatrix4fv(shProgram.iModelViewMat, false, m4.multiply(leftTrans, matrixMult));
+    gl.uniformMatrix4fv(shProgram.iModelViewMat, false, m4.multiply(leftTrans, modelView));
     gl.uniformMatrix4fv(shProgram.iProjectionMat, false, leftP);
-
+    
     gl.colorMask(true, false, false, false);
 
     surface.Draw();
   
     gl.clear(gl.DEPTH_BUFFER_BIT);
   
-    gl.uniformMatrix4fv(shProgram.iModelViewMat, false, m4.multiply(rightTrans, matrixMult));
+    gl.uniformMatrix4fv(shProgram.iModelViewMat, false, m4.multiply(rightTrans, modelView));
     gl.uniformMatrix4fv(shProgram.iProjectionMat, false, rightP);
 
     gl.colorMask(false, true, true, false);
@@ -178,7 +196,7 @@ const CreateSurfaceData = () => {
   let vertexList = [];
 
   let calculateTu = (u, t) => [u / U_MAX, (t + 90) / T_MAX + 90];
-  const scale = 3;
+  const scale = 1;
 
   for (let t = -90; t <= T_MAX; t += 1) {
       for (let u = 0; u <= U_MAX; u += 1) {
@@ -208,6 +226,29 @@ const CreateSurfaceData = () => {
   return { vertexList, textureList };
 }
 
+const CreateSphereData = (segmentsI, segmentsJ) => {
+  let vertexList = [];
+  let textureList = [];
+
+  for (let i = 0; i <= segmentsI; i++) {
+    const theta = i * Math.PI / segmentsI;
+
+    for (let j = 0; j <= segmentsJ; j++) {
+      const phi = j * 2 * Math.PI / segmentsJ;
+
+      vertexList.push(
+        Math.cos(phi) * Math.sin(theta),
+        Math.cos(theta),
+        Math.sin(phi) * Math.sin(theta)
+      );
+
+      textureList.push(1 - (j / segmentsJ), 1 - (i / segmentsI));
+    }
+  }
+
+  return { vertexList, textureList };
+}
+
 
 /* Initialize the WebGL context. Called from init() */
 function initGL() {
@@ -225,12 +266,18 @@ function initGL() {
 
     surface = new Model('Surface');
     BG = new Model('Background');
-    const { vertexList, textureList } = CreateSurfaceData();
-    surface.BufferData(vertexList, textureList);
+    sphere = new Model('Sphere');
+
+    let surfaceData = CreateSurfaceData();
+    surface.BufferData(surfaceData.vertexList, surfaceData.textureList);
+
     BG.BufferData(
       [ 0.0, 0.0, 0.0, 1.0,  0.0, 0.0, 1.0, 1.0,  0.0, 1.0, 1.0, 0.0,  0.0, 1.0, 0.0, 0.0, 0.0, 0.0],
       [ 1, 1, 0, 1,  0, 0, 0, 0,  1, 0, 1, 1],
     );
+
+    let sphereData = CreateSphereData(500, 500);
+    sphere.BufferData(sphereData.vertexList, sphereData.textureList);
 
     LoadTexture();
     gl.enable(gl.DEPTH_TEST);
