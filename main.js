@@ -12,6 +12,15 @@ let orientHandler = null;
 
 let orientationEvent = { alpha: 0, beta: 0, gamma: 0 };
 
+let sphere = null;
+let pos = 0;
+let spherePosition = [0, 0, 0];
+
+let ctx = null;
+let panner = null;
+let filter = null;
+let source = null;
+
 // FIGURE CONSTANTS
 const a = 0.7;
 const c = 1;
@@ -316,6 +325,36 @@ function init() {
     }
   });
 
+  document.getElementById('filter').addEventListener('change', async (e) => {
+    const isChecked = e.target.checked
+    if (isChecked) {
+      panner?.disconnect()
+      panner?.connect?.(filter)
+      filter?.connect?.(ctx.destination)
+    } else {
+      panner?.disconnect()
+      panner?.connect?.(ctx.destination)
+    }
+  })
+
+  document.getElementById('audio').addEventListener('play', (e) => {
+    if (!ctx) {
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+  
+      source = ctx.createMediaElementSource(audio);
+      panner = ctx.createPanner();
+      filter = ctx.createBiquadFilter();
+
+      source.connect(panner);
+      panner.connect(filter);
+      filter.connect(ctx.destination);
+
+      filter.type = "highpass";
+      filter.frequency.value = 1500;
+      ctx.resume();
+    }
+  });
+
   rerender();
 }
 
@@ -376,3 +415,8 @@ const startDeviceOrientation = async () => {
     console.error('e', e);
   }
 };
+
+function updateSpherePosition(newPos) {
+  spherePosition[0] = Math.cos(newPos) * 0.75;
+  spherePosition[2] = -1 + Math.sin(newPos) * 0.75;
+}
